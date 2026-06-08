@@ -1,1 +1,1 @@
-# E.coli-AMR-project
+# Bacterial antibiotic resistance prediction with machine learning
