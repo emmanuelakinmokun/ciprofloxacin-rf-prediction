@@ -4,7 +4,7 @@ import pandas as pd
 
 def load_amr_data(csv_path: str | Path, antibiotic: str = "ciprofloxacin") -> pd.DataFrame:
     """Load BV-BRC AMR records and return binary Resistant (1) vs. Susceptible (0) rows."""
-    df = pd.read_csv(csv_path, low_memory=False)
+    df = pd.read_csv(csv_path, dtype={"Genome ID": "string"}, low_memory=False)
     df_drug = df[df["Antibiotic"].astype(str).str.strip().str.lower() == antibiotic.strip().lower()].copy()
 
     df_drug["Resistant Phenotype"] = (
