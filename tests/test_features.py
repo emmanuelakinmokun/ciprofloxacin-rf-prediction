@@ -25,7 +25,7 @@ def test_get_all_kmers_size_and_order():
 
 
 def test_clean_dna_sequence_filters_ambiguous_bases():
-    assert clean_dna_sequence("atgNcn-gt12") == "ATGCNGT"
+    assert clean_dna_sequence("atgNcn-gt12") == "ATGCGT"
 
 
 def test_count_kmers_frequencies_sum_to_one_and_include_revcomp():
