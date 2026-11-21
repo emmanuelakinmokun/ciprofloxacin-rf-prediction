@@ -1,0 +1,14 @@
+{
+  "trained_on": "2026-11-21T23:48:35.196162",
+  "n_train": 76,
+  "n_test": 19,
+  "n_features": 256,
+  "kmer_k": 4,
+  "class_weight": "balanced",
+  "class_dist_train": [
+    56,
+    20
+  ],
+  "cv_recall_mean": 0.04,
+  "cv_recall_std": 0.08
+}
