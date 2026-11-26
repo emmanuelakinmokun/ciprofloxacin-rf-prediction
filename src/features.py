@@ -86,7 +86,7 @@ def align_features_and_labels(
     feature_matrix: np.ndarray,
     feature_ids: list[str],
     labels_df: pd.DataFrame,
-    id_col: str = "assembly_accession",
+    id_col: str = "Genome ID",
     label_col: str = "label",
 ) -> tuple[np.ndarray, np.ndarray, list[str], pd.DataFrame]:
     """Align feature rows and binary labels on shared genome IDs in sorted order."""
