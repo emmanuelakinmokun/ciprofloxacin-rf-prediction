@@ -11,7 +11,7 @@ This is a learning project built to practise Biopython, pandas and scikit-learn 
 | | |
 |---|---|
 | Pipeline | Complete end to end (labels, genomes, features, model, evaluation) |
-| Honest performance | **Weak.** Cross-validated recall on resistant genomes is about 0.20 to 0.26 |
+| Performance | **Weak.** Cross-validated recall on resistant genomes is about 0.20 to 0.26 |
 | Test-set score of 0.99 accuracy | **Not valid**, caused by data leakage (see [Known issues](#known-issues)) |
 | Next step | Fix the evaluation, then check that the genome downloads are complete |
  
@@ -113,7 +113,7 @@ means these figures are noisy; cross-validated recall was about 0.20 to 0.26.---
  
 Of 929 downloaded files, 466 were shorter than 1 Mb. The 463 that were kept still have a median length of about 1.58 Mb, a mean of 2.3 Mb and a minimum of 1.0 Mb, whereas a complete *E. coli* genome is roughly 4.6 to 5.5 Mb. The likely cause is that the download only returned part of each genome, for example from API row limits on large multi-contig assemblies. This is an inference and should be verified.
  
-Why it matters: k-mer profiles from different fragments of different genomes are not comparable, which could explain the weak signal.
+K-mer profiles from different fragments of different genomes are not comparable, which could explain the weak signal.
  
 Fix: re-download and confirm each genome is close to its expected size, then require at least about 4 Mb total length in QC.
  
