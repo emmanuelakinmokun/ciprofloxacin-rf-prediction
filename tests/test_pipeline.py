@@ -34,7 +34,7 @@ def synthetic_dataset(tmp_path: Path):
     y = np.array([0] * 28 + [1] * 12, dtype=np.int64)
     # Inject a subtle signal on feature 0 so models can learn something non-trivial
     X[y == 1, 0] += 2.0
-    genome_ids = np.array([f"GCF_{i:06d}.1" for i in range(n_samples)])
+    genome_ids = np.array([f"1004153.{i + 1}" for i in range(n_samples)])
 
     x_path = tmp_path / "X.npy"
     y_path = tmp_path / "y.npy"
@@ -77,7 +77,7 @@ def test_load_and_split_dataset(synthetic_dataset):
 def test_load_dataset_mismatched_lengths_raises(tmp_path: Path):
     np.save(tmp_path / "X.npy", np.ones((5, 4)))
     np.save(tmp_path / "y.npy", np.array([0, 1, 0, 1]))  # wrong length
-    (tmp_path / "genome_order.txt").write_text("\n".join(["G1", "G2", "G3", "G4", "G5"]))
+    (tmp_path / "genome_order.txt").write_text("\n".join(["100.1", "100.2", "100.3", "100.4", "100.5"]))
 
     with pytest.raises(ValueError, match="Expected 1D labels y of length 5"):
         load_dataset(tmp_path / "X.npy", tmp_path / "y.npy", tmp_path / "genome_order.txt")
@@ -160,6 +160,7 @@ def test_evaluate_misclassified_and_prob_plot(synthetic_dataset, tmp_path: Path)
 
     wrong_df = get_misclassified_genomes(ids_test, y_test, results["y_pred"], results["y_pred_proba"])
     assert list(wrong_df.columns) == ["genome_id", "true_label", "pred_label", "p_resistant"]
+    assert set(wrong_df["genome_id"]).issubset(set(ids_test))
 
     prob_plot_path = tmp_path / "plots" / "prob.png"
     fig2 = plot_probability_distribution(y_test, results["y_pred_proba"], output_path=prob_plot_path, dpi=100)
