@@ -2,20 +2,21 @@ from pathlib import Path
 from Bio import SeqIO
 import numpy as np
 
+FASTA_EXTENSIONS = {".fasta", ".fna", ".fa"}
 
-def extract_accession(filename: str) -> str:
-    """Extract GCA_/GCF_ accession prefix (e.g., 'GCF_027925745.1') from a FASTA filename."""
-    parts = Path(filename).stem.split("_")
-    return "_".join(parts[:2]) if len(parts) >= 2 else Path(filename).stem
+
+def extract_genome_id(filename: str | Path) -> str:
+    """Extract the genome ID from a FASTA filename (e.g., '1004153.3.fna' -> '1004153.3')."""
+    return Path(filename).stem
 
 
 def index_genome_files(genome_folder: str | Path) -> dict[str, Path]:
-    """Map assembly accession prefixes to FASTA file paths."""
+    """Map genome IDs to FASTA file paths."""
     folder = Path(genome_folder)
     index: dict[str, Path] = {}
     for path in sorted(folder.iterdir()):
-        if path.is_file() and path.suffix.lower() in {".fasta", ".fna"}:
-            index[extract_accession(path.name)] = path
+        if path.is_file() and path.suffix.lower() in FASTA_EXTENSIONS:
+            index[extract_genome_id(path.name)] = path
     return index
 
 
@@ -29,19 +30,19 @@ def load_genome_sequence(filepath: str | Path) -> tuple[str, int]:
 
 def load_matched_genomes(
     genome_folder: str | Path,
-    allowed_accessions: set[str],
+    allowed_genome_ids: set[str],
 ) -> tuple[dict[str, str], list[str]]:
-    """Load sequences only for accessions present in allowed_accessions."""
+    """Load sequences only for genome IDs present in allowed_genome_ids."""
     file_index = index_genome_files(genome_folder)
     genomes: dict[str, str] = {}
     skipped: list[str] = []
 
-    for acc, path in file_index.items():
-        if acc not in allowed_accessions:
+    for gid, path in file_index.items():
+        if gid not in allowed_genome_ids:
             skipped.append(path.name)
             continue
         seq, _ = load_genome_sequence(path)
-        genomes[acc] = seq
+        genomes[gid] = seq
 
     return genomes, skipped
 
