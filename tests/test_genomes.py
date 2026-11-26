@@ -1,7 +1,13 @@
+from pathlib import Path
 import pytest
+import sys
 
-from src.genomes import (
-    extract_accession,
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "src"))
+
+from genomes import (
+    extract_genome_id,
     index_genome_files,
     load_genome_sequence,
     load_matched_genomes,
@@ -9,75 +15,86 @@ from src.genomes import (
 )
 
 
-@pytest.mark.parametrize(
-    ("filename", "expected"),
-    [
-        ("GCF_027925745.1_ASM2792574v1_genomic.fna", "GCF_027925745.1"),
-        ("GCA_000005845.2_ASM584v2_genomic.fasta", "GCA_000005845.2"),
-        ("singlepart.fna", "singlepart"),
-    ],
-)
-def test_extract_accession(filename, expected):
-    assert extract_accession(filename) == expected
+class TestExtractGenomeId:
+    @pytest.mark.parametrize(
+        "filename,expected",
+        [
+            ("1004153.3.fna", "1004153.3"),
+            ("1038927.41.fasta", "1038927.41"),
+            ("1116012.3.fa", "1116012.3"),
+            ("/path/to/83334.614.FNA", "83334.614"),
+        ],
+    )
+    def test_extracts_stem_from_filename(self, filename: str, expected: str):
+        assert extract_genome_id(filename) == expected
 
 
-def test_index_genome_files_filters_extensions_and_ignores_subdirs(tmp_path):
-    (tmp_path / "GCF_001.1_asm1_genomic.fna").write_text(">c1\nACGT\n")
-    (tmp_path / "GCA_002.1_asm2_genomic.fasta").write_text(">c1\nTGCA\n")
-    (tmp_path / "notes.txt").write_text("ignore me")
-    (tmp_path / "GCF_003.1_subdir.fna").mkdir()
+class TestIndexGenomeFiles:
+    def test_indexes_fasta_fna_and_fa_and_ignores_non_fasta(self, tmp_path: Path):
+        (tmp_path / "1004153.3.fna").write_text(">c1\nACGT\n", encoding="utf-8")
+        (tmp_path / "1038927.41.fasta").write_text(">c1\nTGCA\n", encoding="utf-8")
+        (tmp_path / "1116012.3.fa").write_text(">c1\nGGGG\n", encoding="utf-8")
+        (tmp_path / "notes.txt").write_text("ignore me", encoding="utf-8")
+        (tmp_path / "subdir").mkdir()
 
-    indexed = index_genome_files(tmp_path)
+        indexed = index_genome_files(tmp_path)
+        assert set(indexed.keys()) == {"1004153.3", "1038927.41", "1116012.3"}
+        assert indexed["1004153.3"].name == "1004153.3.fna"
 
-    assert set(indexed.keys()) == {"GCF_001.1", "GCA_002.1"}
-
-
-def test_load_genome_sequence_concatenates_contigs_and_uppercases(tmp_path):
-    fasta = tmp_path / "test.fna"
-    fasta.write_text(">contig_1\nacgt\n>contig_2\nNNtt\n")
-
-    seq, n_contigs = load_genome_sequence(fasta)
-
-    assert seq == "ACGTNNTT"
-    assert n_contigs == 2
+    def test_empty_folder_returns_empty_dict(self, tmp_path: Path):
+        assert index_genome_files(tmp_path) == {}
 
 
-def test_load_genome_sequence_empty_file_raises(tmp_path):
-    empty_fasta = tmp_path / "empty.fna"
-    empty_fasta.write_text("")
+class TestLoadGenomeSequence:
+    def test_concatenates_contigs_and_uppercases(self, tmp_path: Path):
+        fasta = tmp_path / "1004153.3.fna"
+        fasta.write_text(">contig_1\nacgt\n>contig_2\nttna\n", encoding="utf-8")
 
-    with pytest.raises(ValueError, match="Empty FASTA file"):
-        load_genome_sequence(empty_fasta)
+        seq, contig_count = load_genome_sequence(fasta)
+        assert seq == "ACGTTTNA"
+        assert contig_count == 2
 
+    def test_empty_fasta_raises_value_error(self, tmp_path: Path):
+        empty_fasta = tmp_path / "empty.fna"
+        empty_fasta.write_text("", encoding="utf-8")
 
-def test_load_matched_genomes_loads_only_allowed_accessions(tmp_path):
-    (tmp_path / "GCF_111.1_a_genomic.fna").write_text(">c1\nAAAA\n")
-    (tmp_path / "GCF_222.1_b_genomic.fna").write_text(">c1\nCCCC\n")
-
-    genomes, skipped = load_matched_genomes(tmp_path, allowed_accessions={"GCF_111.1"})
-
-    assert genomes == {"GCF_111.1": "AAAA"}
-    assert skipped == ["GCF_222.1_b_genomic.fna"]
-
-
-def test_summarize_genomes_empty():
-    summary = summarize_genomes({})
-    assert summary == {"count": 0, "short_genomes": {}, "n_content_pct": {}}
+        with pytest.raises(ValueError, match="Empty FASTA file"):
+            load_genome_sequence(empty_fasta)
 
 
-def test_summarize_genomes_stats_short_flag_and_n_content():
-    genomes = {
-        "GCF_SHORT": "ACNT",               # 4 bp (< 10 bp threshold), 25% N
-        "GCF_LONG": "A" * 16 + "N" * 4,    # 20 bp (>= 10 bp threshold), 20% N
-    }
+class TestLoadMatchedGenomes:
+    def test_loads_only_allowed_ids_and_tracks_skipped(self, tmp_path: Path):
+        (tmp_path / "100.1.fna").write_text(">c1\natgc\n", encoding="utf-8")
+        (tmp_path / "200.1.fna").write_text(">c1\ngggg\n", encoding="utf-8")
+        (tmp_path / "300.1.fna").write_text(">c1\ncccc\n", encoding="utf-8")
 
-    summary = summarize_genomes(genomes, short_threshold=10, n_preview=2)
+        genomes, skipped = load_matched_genomes(tmp_path, allowed_genome_ids={"100.1", "300.1"})
 
-    assert summary["count"] == 2
-    assert summary["min_bp"] == 4
-    assert summary["max_bp"] == 20
-    assert summary["mean_bp"] == 12.0
-    assert summary["median_bp"] == 12.0
-    assert summary["short_genomes"] == {"GCF_SHORT": 4}
-    assert summary["n_content_pct"]["GCF_SHORT"] == pytest.approx(25.0)
-    assert summary["n_content_pct"]["GCF_LONG"] == pytest.approx(20.0)
+        assert genomes == {"100.1": "ATGC", "300.1": "CCCC"}
+        assert skipped == ["200.1.fna"]
+
+
+class TestSummarizeGenomes:
+    def test_empty_genomes_returns_defaults(self):
+        assert summarize_genomes({}) == {
+            "count": 0,
+            "short_genomes": {},
+            "n_content_pct": {},
+        }
+
+    def test_stats_short_flag_and_n_content_preview(self):
+        genomes = {
+            "g1": "ACGT" * 250_000,          # 1,000,000 bp (not short), 0% N
+            "g2": "NN" + ("AC" * 99),          # 200 bp (short), 1.0% N
+            "g3": "AAAA" * 300_000,          # 1,200,000 bp (not short), 0% N
+        }
+        summary = summarize_genomes(genomes, short_threshold=1_000_000, n_preview=2)
+
+        assert summary["count"] == 3
+        assert summary["min_bp"] == 200
+        assert summary["max_bp"] == 1_200_000
+        assert summary["mean_bp"] == pytest.approx((1_000_000 + 200 + 1_200_000) / 3)
+        assert summary["median_bp"] == pytest.approx(1_000_000.0)
+        assert summary["short_genomes"] == {"g2": 200}
+        assert list(summary["n_content_pct"].keys()) == ["g1", "g2"]
+        assert summary["n_content_pct"]["g2"] == pytest.approx(1.0)
